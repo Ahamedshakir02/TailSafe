@@ -1,21 +1,20 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, TextInput } from "react-native";
-import { getFirestore, collection, onSnapshot } from "firebase/firestore";
+import { getFirestore, collection, onSnapshot } from "firebase/firestore"; // Firebase Firestore
 
 const AlertsScreen = ({ navigation }) => {
-  const [alerts, setAlerts] = useState([]);
+  const [alerts, setAlerts] = useState([]); // Alerts fetched from Firestore
   const [filter, setFilter] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
-  const db = getFirestore();
 
   useEffect(() => {
-    // Fetch alerts from Firestore
+    const db = getFirestore();
     const unsubscribe = onSnapshot(collection(db, "alerts"), (snapshot) => {
-      const alertList = snapshot.docs.map((doc) => ({
+      const fetchedAlerts = snapshot.docs.map((doc) => ({
         id: doc.id,
         ...doc.data(),
       }));
-      setAlerts(alertList);
+      setAlerts(fetchedAlerts);
     });
 
     return () => unsubscribe(); // Cleanup listener on unmount
@@ -38,7 +37,7 @@ const AlertsScreen = ({ navigation }) => {
     >
       <Text style={styles.alertTitle}>{item.title}</Text>
       <Text style={styles.alertDescription}>{item.description}</Text>
-      <Text style={styles.alertTimestamp}>{new Date(item.timestamp?.toDate()).toLocaleString()}</Text>
+      <Text style={styles.alertTimestamp}>{new Date(item.timestamp).toLocaleString()}</Text>
     </TouchableOpacity>
   );
 
