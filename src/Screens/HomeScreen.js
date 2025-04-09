@@ -1,22 +1,23 @@
 import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  FlatList,
-  Alert,
-} from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, FlatList, Alert } from "react-native";
 import { useNavigation } from "@react-navigation/native";
 import { getFirestore, collection, onSnapshot } from "firebase/firestore";
+import { getAuth } from "firebase/auth";
 
-const HomeScreen = () => {
-  const navigation = useNavigation();
-  const [devices, setDevices] = useState([]); // Connected devices
+const HomeScreen = ({ navigation }) => {
+  const [devices, setDevices] = useState([]);
 
   useEffect(() => {
     const db = getFirestore();
-    const userId = "currentUserId"; // Replace with the logged-in user's ID
+    const auth = getAuth();
+    const userId = auth.currentUser?.uid;
+
+    if (!userId) {
+      console.error("User is not authenticated.");
+      Alert.alert("Error", "You must be logged in to access your devices.");
+      return;
+    }
+
     const unsubscribe = onSnapshot(
       collection(db, "users", userId, "devices"),
       (snapshot) => {
@@ -25,18 +26,20 @@ const HomeScreen = () => {
           ...doc.data(),
         }));
         setDevices(fetchedDevices);
+      },
+      (error) => {
+        console.error("Error fetching devices:", error);
+        Alert.alert("Error", "Failed to fetch devices. Please check your permissions.");
       }
     );
 
-    return () => unsubscribe(); // Cleanup listener on unmount
+    return () => unsubscribe();
   }, []);
 
   const renderDevice = ({ item }) => (
     <TouchableOpacity
       style={styles.deviceItem}
-      onPress={() =>
-        navigation.navigate("DeviceDetails", { device: item }) // Pass the entire device object
-      }
+      onPress={() => navigation.navigate("DeviceDetails", { device: item })}
     >
       <Text style={styles.deviceName}>{item.name}</Text>
       <Text style={styles.deviceId}>ID: {item.id}</Text>
@@ -45,7 +48,7 @@ const HomeScreen = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Your Devices</Text>
+      <Text style={styles.title}>Home Screen</Text>
       <FlatList
         data={devices}
         keyExtractor={(item) => item.id}
@@ -53,10 +56,10 @@ const HomeScreen = () => {
         ListEmptyComponent={<Text style={styles.emptyText}>No devices found.</Text>}
       />
       <TouchableOpacity
-        style={styles.addButton}
-        onPress={() => navigation.navigate("AddDevice")}
+        style={styles.connectButton}
+        onPress={() => navigation.navigate("ConnectionScreen")}
       >
-        <Text style={styles.addButtonText}>+</Text>
+        <Text style={styles.connectButtonText}>Connect Device</Text>
       </TouchableOpacity>
     </View>
   );
@@ -94,20 +97,19 @@ const styles = StyleSheet.create({
     color: "gray",
     marginTop: 20,
   },
-  addButton: {
+  connectButton: {
     backgroundColor: "#007BFF",
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    padding: 15,
+    borderRadius: 5,
     alignItems: "center",
     justifyContent: "center",
     position: "absolute",
     bottom: 20,
     right: 20,
   },
-  addButtonText: {
-    fontSize: 30,
+  connectButtonText: {
     color: "#FFF",
+    fontSize: 16,
   },
 });
 

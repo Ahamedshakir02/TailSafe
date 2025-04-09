@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { View, ActivityIndicator } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { createStackNavigator } from "@react-navigation/stack";
 import { Ionicons } from "@expo/vector-icons";
@@ -10,7 +11,9 @@ import ProfileScreen from "../Screens/ProfileScreen";
 import SignInScreen from "../Screens/AuthScreen/SigninScreen";
 import SignUpScreen from "../Screens/AuthScreen/SignupScreen";
 import AddDeviceScreen from "../Screens/AddDeviceScreen";
-import DeviceDetailsScreen from "../Screens/DeviceDetailsScreen";
+import ConnectionScreen from "../Screens/ConnectionScreen"; // New screen
+import BLEScreen from "../Screens/BLEScreen"; // New screen
+import WebSocketScreen from "../Screens/WebSocketScreen"; // New screen
 
 const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
@@ -51,7 +54,13 @@ const Navigation = () => {
     return unsubscribe;
   }, []);
 
-  if (loading) return null; // Show a loading screen or spinner if needed
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#007BFF" />
+      </View>
+    );
+  }
 
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -59,9 +68,9 @@ const Navigation = () => {
         <>
           <Stack.Screen name="Main" component={TabNavigator} />
           <Stack.Screen name="AddDevice" component={AddDeviceScreen} />
-          <Stack.Screen name="Home" component={HomeScreen} />
-          <Stack.Screen name="Map" component={MapScreen} />
-          <Stack.Screen name="DeviceDetails" component={DeviceDetailsScreen} />
+          <Stack.Screen name="ConnectionScreen" component={ConnectionScreen} />
+          <Stack.Screen name="BLEScreen" component={BLEScreen} />
+          <Stack.Screen name="WebSocketScreen" component={WebSocketScreen} />
         </>
       ) : (
         <>

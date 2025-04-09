@@ -4,19 +4,22 @@ import MapView, { Marker, Polyline } from "react-native-maps";
 import * as Location from "expo-location";
 import * as Linking from "expo-linking";
 import { BleManager } from "react-native-ble-plx";
-import carIcon from "../../assets/car-icon.jpg"; // Import the car icon
+
+const SERVICE_UUID = "12345678-1234-1234-1234-1234567890ab"; // Replace with your ESP32 Service UUID
+const CHARACTERISTIC_UUID = "abcd1234-abcd-1234-abcd-1234567890ab"; // Replace with your ESP32 Characteristic UUID
+const ESP32_WEBSOCKET_URL = "ws://192.168.4.1/ws"; // Replace with your ESP32 WebSocket URL
 
 const MapScreen = ({ route }) => {
-  const { device, useBLE, serviceUuid, characteristicUuid, websocketUrl } = route.params; // Retrieve values from route.params
-  const [trackerLocation, setTrackerLocation] = useState(null);
-  const [routeCoordinates, setRouteCoordinates] = useState([]);
+  const { device, useBLE } = route.params; // `useBLE` determines whether to use BLE or WebSocket
+  const [trackerLocation, setTrackerLocation] = useState(null); // Tracker's real-time location
+  const [routeCoordinates, setRouteCoordinates] = useState([]); // Store route coordinates
   const manager = new BleManager();
 
   useEffect(() => {
     if (useBLE) {
-      connectToBLEDevice(serviceUuid, characteristicUuid);
+      connectToBLEDevice();
     } else {
-      connectToWebSocket(websocketUrl);
+      connectToWebSocket();
     }
 
     return () => {
@@ -26,14 +29,16 @@ const MapScreen = ({ route }) => {
     };
   }, [useBLE]);
 
-  const connectToBLEDevice = async (serviceUuid, characteristicUuid) => {
+  // ----------- BLE Connection -----------
+  const connectToBLEDevice = async () => {
     try {
       const connectedDevice = await manager.connectToDevice(device.id);
       await connectedDevice.discoverAllServicesAndCharacteristics();
 
+      // Start listening for GPS data
       connectedDevice.monitorCharacteristicForService(
-        serviceUuid,
-        characteristicUuid,
+        SERVICE_UUID,
+        CHARACTERISTIC_UUID,
         (error, characteristic) => {
           if (error) {
             console.error("Error receiving data via BLE:", error);
@@ -44,6 +49,7 @@ const MapScreen = ({ route }) => {
           const decodedData = atob(receivedData); // Decode Base64
           console.log("Received Data via BLE:", decodedData);
 
+          // Parse and update GPS data
           const parsedData = parseESP32Data(decodedData);
           if (parsedData) {
             setTrackerLocation(parsedData);
@@ -57,8 +63,9 @@ const MapScreen = ({ route }) => {
     }
   };
 
-  const connectToWebSocket = (websocketUrl) => {
-    const ws = new WebSocket(websocketUrl);
+  // ----------- WebSocket Connection -----------
+  const connectToWebSocket = () => {
+    const ws = new WebSocket(ESP32_WEBSOCKET_URL);
 
     ws.onopen = () => {
       console.log("Connected to ESP32 WebSocket");
@@ -68,6 +75,7 @@ const MapScreen = ({ route }) => {
       const message = event.data;
       console.log("Received Data via WebSocket:", message);
 
+      // Parse and update GPS data
       const parsedData = parseESP32Data(message);
       if (parsedData) {
         setTrackerLocation(parsedData);
@@ -87,6 +95,7 @@ const MapScreen = ({ route }) => {
     return () => ws.close(); // Cleanup WebSocket on unmount
   };
 
+  // ----------- Data Parsing Function -----------
   const parseESP32Data = (data) => {
     const gpsMatch = data.match(/GPS: ([\d.-]+), ([\d.-]+)/);
     return gpsMatch
@@ -94,6 +103,7 @@ const MapScreen = ({ route }) => {
       : null;
   };
 
+  // ----------- Open Directions in Google Maps -----------
   const showDirections = (latitude, longitude) => {
     const url = `https://www.google.com/maps/dir/?api=1&destination=${latitude},${longitude}`;
     Linking.openURL(url).catch(() => {
@@ -119,14 +129,8 @@ const MapScreen = ({ route }) => {
           latitudeDelta: 0.01,
           longitudeDelta: 0.01,
         }}
-        showsUserLocation={true}
-        onUserLocationChange={(e) => {
-          const userCoordinate = e.nativeEvent.coordinate;
-          if (userCoordinate) {
-            setRouteCoordinates((prev) => [...prev, userCoordinate]);
-          }
-        }}
       >
+        {/* Tracker Marker */}
         <Marker
           coordinate={{
             latitude: trackerLocation.latitude,
@@ -134,9 +138,9 @@ const MapScreen = ({ route }) => {
           }}
           title={device.name}
           description={`Latitude: ${trackerLocation.latitude}, Longitude: ${trackerLocation.longitude}`}
-        >
-          <Image source={carIcon} style={{ width: 40, height: 40 }} />
-        </Marker>
+        />
+
+        {/* Route Polyline */}
         <Polyline
           coordinates={routeCoordinates}
           strokeColor="#007BFF"
@@ -158,7 +162,7 @@ const MapScreen = ({ route }) => {
       </View>
     </View>
   );
-}
+};
 
 const styles = StyleSheet.create({
   container: {
